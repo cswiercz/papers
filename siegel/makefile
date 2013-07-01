@@ -9,8 +9,9 @@ TARGET=siegel
 # TeX programs
 TEX=latex
 LATEX=latex
+BIBTEX=bibtex
 DVIPS=dvips
-DVIPDF=dvipdf
+PS2PDF=ps2pdf
 
 # Use operating system-specific PDF viewer
 UNAME := $(shell uname)
@@ -28,12 +29,15 @@ endif
 
 %.dvi : %.tex
 	$(LATEX) $<
+	$(BIBTEX) $(subst tex,aux,$<)
+	$(LATEX) $<
+	$(LATEX) $<
 
 %.ps : %.dvi
-	$(DVIPS) $<
+	$(DVIPS) -z $< -o $@
 
-%.pdf : %.dvi
-	$(DVIPDF) $<
+%.pdf : %.ps
+	$(PS2PDF) $<
 
 default: $(TARGET).$(EXT)
 	$(VIEWER) $(TARGET).$(EXT)

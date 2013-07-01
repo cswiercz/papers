@@ -1,8 +1,29 @@
 \documentclass[12]{article}
 
 \usepackage{amsmath,amssymb}
+\usepackage{color}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
+\usepackage{hyperref}
+\hypersetup{
+    bookmarks=true,         % show bookmarks bar?
+    unicode=false,          % non-Latin characters in Acrobat’s bookmarks
+    pdftoolbar=true,        % show Acrobat’s toolbar?
+    pdfmenubar=true,        % show Acrobat’s menu?
+    pdffitwindow=false,     % window fit to page when opened
+    pdfstartview={FitH},    % fits the width of the page to the window
+    pdftitle={Efficient Modular Computation of the Riemann
+      Theta Function},    % title
+    pdfauthor={Swierczewski and Williams},     % author
+    pdfcreator={Swierczewski},   % creator of the document
+    pdfkeywords={mathematics} {theta functions} {siegel transform},
+    pdfnewwindow=true,      % links in new window
+    colorlinks=false,       % false: boxed links; true: colored links
+    linkcolor=red,          % color of internal links
+    citecolor=green,        % color of links to bibliography
+    filecolor=magenta,      % color of file links
+    urlcolor=cyan           % color of external links
+}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{definition}{Definition}
@@ -25,7 +46,8 @@
     University of Washington & University of Washington \\
     Department of Applied Mathematics & Department of Mathematics \\
     Seattle, WA 98195-3925 & Seattle, WA 98195-4350 \\
-    {\tt cswiercz@uw.edu} & {\tt gradyrw@uw.edu}
+    \href{mailto:cswiercz@uw.edu}{\tt cswiercz@uw.edu} &
+    \href{mailto:gradyrw@uw.edu}{\tt gradyrw@uw.edu}
   \end{tabular}
 }
 \date{\today}
@@ -37,18 +59,18 @@
 \maketitle
 
 \begin{abstract}
-We describe a method and algorithm for uniformly approximating the Riemann
-theta function $\theta : \CC^g \times \hg$ with repsect to both of its inputs,
-$z \in \CC^g$ and Riemann matrix $\Omega \in \hg$. This approximation allows
-for efficient parallel computation of $\theta(z,\Omega)$ for varying $z$ and
-$\Omega$. The algorithm is implemented in the Python, C, and CUDA programming
-languages and is a part of the {\sc abelfunctions} software package. ({\tt
-  github.com/cswiercz/abelfunctions})
+We present an algorithm for uniformly approximating the Riemann theta function
+$\theta : \CC^g \times \hg \to \CC$ with repsect to both of its inputs; a
+complex vector $z \in \CC^g$ and a Riemann matrix $\Omega \in \hg$. This
+approximation allows for efficient parallel computation of $\theta(z,\Omega)$
+for varying $z$ and $\Omega$. The algorithm is implemented in the Python, C,
+and CUDA programming languages and is a part of the {\sc abelfunctions}
+software package. \url{http://github.com/cswiercz/abelfunctions}
 \end{abstract}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Introduction}
+\section{Introduction}\label{sec:intro}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 The Riemann theta function is the fundamental building for Abelian
@@ -66,27 +88,27 @@ uniformly approximating the Riemann theta function with respect to its input
 with the goal of providing an efficient method of calculation.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Riemann Theta Functions}
+\section{Riemann Theta Functions}\label{sec:riemanntheta}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 The Riemann theta function, $\theta : \CC^g \times \hg \to \CC$, is defined in
 terms of its Fourier series
-\[
+\begin{equation}\label{eq:theta}
   \theta(z,\Omega) = \sum_{n \in \mathbb{Z}^g}
   e^{2\pi i \left( \tfrac{1}{2} n \cdot \Omega n + n \cdot z \right)}
-\]
+\end{equation}
 where $\hg$ is the $g$-dimensional Siegel upper half space; that is, the space
 of all matrices $\Omega \in \CC^{g \times g}$ such that $\Omega^T = \Omega$ and
 $\text{Im}(\Omega)$ is positive definite. The Riemann theta function converges
 absolutely and uniformly on compact sets in $\CC^g \times \hg$. It is periodic
 in $z$ with integer periods and quasi-periodic in $z$ in the columns of
 $\Omega$. That is, if $m,n \in \ZZ^g$ then
-\[
+\begin{equation}\label{eq:theta transform}
   \theta(z + \Omega m + n, \Omega) = e^{-2\pi i \left( \tfrac{1}{2} m
     \cdot \Omega m + m \cdot z \right)} \theta(z,\Omega).
-\]
-See \cite{DLMF,MumfordI07,MumfordII07} for further properties of the Riemann
-theta funciton.
+\end{equation}
+See \cite{DLMF,Mumford:2007ww,Mumford:2007wm} for further properties of the
+Riemann theta funciton.
 
 %------------------------------------------------------------------------------
 \subsection{Uniform Approximation with Respect to $z$}
@@ -104,10 +126,10 @@ handle any floating point calculation errors that surface.
 We now summarize a previous result due to Deconinck, Heil, Bobenko, van Hoeij,
 and Schmies allows us to approximate $\theta(z,\Omega)$ for a fixed $\Omega \in
 \hg$ and any choice of $z \in \CC^g$ to a desired precision $\epsilon$
-\cite{Bernard}. In the sequel let $z=x + iy, \, \Omega = X + iY, \, Y = T^TT$
-be the Cholesky decomposition of $Y$, $\Gamma(s,x)$ be the incomplete gamma
-function, and given a vector $w \in \RR^g$ we let $[w]$ be the vector with
-integer components closest to $v$ and $[[w]] = w - [w]$.
+\cite{Deconinck:2004uc}. In the sequel let $z=x + iy, \, \Omega = X + iY, \, Y
+= T^TT$ be the Cholesky decomposition of $Y$, $\Gamma(s,x)$ be the incomplete
+gamma function, and given a vector $w \in \RR^g$ we let $[w]$ be the vector
+with integer components closest to $v$ and $[[w]] = w - [w]$.
 
 \begin{theorem}[Uniform Approximation with Respect to $z$.]
 The Riemann theta function is approximated by
@@ -139,7 +161,7 @@ the lattice $\hat{\Lambda} = \sqrt{\pi}T\ZZ^g$.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Siegel Transformation and Sympectic Geometry}
+\section{Siegel Transformation and Sympectic Geometry}\label{sec:siegel}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -262,11 +284,13 @@ e^{\pi i z \cdot (c \Omega + d)^{-1} c z}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Efficient Computation of Theta}
+\section{Efficient Computation of Theta}\label{sec:computation}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 
+\bibliographystyle{plain}
+\bibliography{../papers.bib}
 
 \end{document}
 
