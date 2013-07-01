@@ -1,81 +1,190 @@
-\documentclass{amsart}
+\documentclass[12]{article}
 
 \usepackage{amsmath,amssymb}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 
-\title{The Siegel Transformation}
-\author{
-  Chris Swierczewski \\
-  Grady Williams
-}
-\date{11 April 2013}
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
 
+\DeclareMathOperator{\ZZ}{\mathbb{Z}}
+\DeclareMathOperator{\RR}{\mathbb{R}}
+\DeclareMathOperator{\CC}{\mathbb{C}}
+\DeclareMathOperator{\hg}{\mathfrak{h}_g}
+
+\newcommand{\thchar}[2] {\begin{bmatrix}#1\\#2\end{bmatrix}}
+\newcommand{\thcharsm}[2] {\left[ \begin{smallmatrix} #1
+      \\ #2 \end{smallmatrix} \right]}
+
+
+\title{Efficient Modular Computation of the Riemann Theta Function}
+\author{
+  \small
+  \begin{tabular}{cc}
+    Chris Swierczewski & Grady Williams \\
+    University of Washington & University of Washington \\
+    Department of Applied Mathematics & Department of Mathematics \\
+    Seattle, WA 98195-3925 & Seattle, WA 98195-4350 \\
+    {\tt cswiercz@uw.edu} & {\tt gradyrw@uw.edu}
+  \end{tabular}
+}
+\date{\today}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \maketitle
 
+\begin{abstract}
+We describe a method and algorithm for uniformly approximating the Riemann
+theta function $\theta : \CC^g \times \hg$ with repsect to both of its inputs,
+$z \in \CC^g$ and Riemann matrix $\Omega \in \hg$. This approximation allows
+for efficient parallel computation of $\theta(z,\Omega)$ for varying $z$ and
+$\Omega$. The algorithm is implemented in the Python, C, and CUDA programming
+languages and is a part of the {\sc abelfunctions} software package. ({\tt
+  github.com/cswiercz/abelfunctions})
+\end{abstract}
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Siegel Transforms}
+\section{Introduction}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+The Riemann theta function is the fundamental building for Abelian
+functions. These are functions in $g$ complex variables, which are meromorphic
+and double periodic in each variable. As such, the Abelian functions generalize
+the classical elliptic functions to multiple variables. Like elliptic
+functions, Abelian functions arise in a plethora of applications and the
+Riemann theta function itself sees applications in fields such as integrable
+systems of partial differential equations, convex optimization, and number
+theory.
 
+We address the problem of efficiently computing the Riemann theta function to a
+desired floating point precision. In particular, we derive methods for
+uniformly approximating the Riemann theta function with respect to its input
+with the goal of providing an efficient method of calculation.
 
-We wish to compute the Riemann theta function
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Riemann Theta Functions}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+The Riemann theta function, $\theta : \CC^g \times \hg \to \CC$, is defined in
+terms of its Fourier series
 \[
   \theta(z,\Omega) = \sum_{n \in \mathbb{Z}^g}
-  e^{2\pi\i \left( \tfrac{1}{2} n \cdot \Omega n + n \cdot z \right)}
+  e^{2\pi i \left( \tfrac{1}{2} n \cdot \Omega n + n \cdot z \right)}
 \]
-to a desired accuracy $\epsilon$. Let $z = x+iy,\Omega = X + iY$ and $Y = T^TT$
-be the Cholesky decomposition of $Y$. Let $\Lambda$ be the lattice
+where $\hg$ is the $g$-dimensional Siegel upper half space; that is, the space
+of all matrices $\Omega \in \CC^{g \times g}$ such that $\Omega^T = \Omega$ and
+$\text{Im}(\Omega)$ is positive definite. The Riemann theta function converges
+absolutely and uniformly on compact sets in $\CC^g \times \hg$. It is periodic
+in $z$ with integer periods and quasi-periodic in $z$ in the columns of
+$\Omega$. That is, if $m,n \in \ZZ^g$ then
 \[
-  \Lambda = \sqrt{\pi}T \left( \mathbb{Z}^g + [[Y^{-1}y]] \right)
+  \theta(z + \Omega m + n, \Omega) = e^{-2\pi i \left( \tfrac{1}{2} m
+    \cdot \Omega m + m \cdot z \right)} \theta(z,\Omega).
 \]
-and $\rho$ be the length of the shortest lattice vector. (Note that
-this is the length of the shortest lattice vector of $T\mathbb{Z}$
-scaled by $\sqrt{\pi}$.) Then, by [CRTF], to compute
-$\theta(z,\Omega)$ with error $\epsilon$ it is sufficient to compute
-the ``oscillatory part'' over the integer points
-\[
-  U_R = \left\{ n \in \mathbb{Z}^g \; | \; \pi n \cdot Y n < R \right\}
-\]
-where $R$ is the real positive solution to
-\[
-  \epsilon = g2^{g-1}\Gamma(g/2,(R-\rho/2)^2)/\rho^g
-\]
-and $\Gamma(s,x)$ is the incomplete gamma function.
+See \cite{DLMF,MumfordI07,MumfordII07} for further properties of the Riemann
+theta funciton.
 
-Note that $U_R$ is a collection of integer vectors lying inside the
-ellipsoid $\pi z \cdot Yz = R$. If the ellipsoid has high eccentricity
-then it is possible that both $|U_R|$ is large and the magnitudes of
-the elements of $U_R$ are large. These two situations can contribute
-to numerical error in an implementation of the algorthm.
+%------------------------------------------------------------------------------
+\subsection{Uniform Approximation with Respect to $z$}
+%------------------------------------------------------------------------------
 
+From the definition of the Riemann theta function and its quasi-periodicity
+property we immediately see two challenges in computing $\theta(z,\Omega)$ up
+to a desired floating point precision. First, the function is given in terms of
+an infinite sum. Second, theta grows doubly exponentially with respect to $z$
+in $g$ linearly independent directions; the issue here being about how to
+handle any floating point calculation errors that surface.
+
+[...]
+
+We now summarize a previous result due to Deconinck, Heil, Bobenko, van Hoeij,
+and Schmies allows us to approximate $\theta(z,\Omega)$ for a fixed $\Omega \in
+\hg$ and any choice of $z \in \CC^g$ to a desired precision $\epsilon$
+\cite{Bernard}. In the sequel let $z=x + iy, \, \Omega = X + iY, \, Y = T^TT$
+be the Cholesky decomposition of $Y$, $\Gamma(s,x)$ be the incomplete gamma
+function, and given a vector $w \in \RR^g$ we let $[w]$ be the vector with
+integer components closest to $v$ and $[[w]] = w - [w]$.
+
+\begin{theorem}[Uniform Approximation with Respect to $z$.]
+The Riemann theta function is approximated by
+\begin{equation} \label{eqn: uniform}
+  \theta(z,\Omega)
+  \approx
+  e^{\pi y \cdot Y^{-1} y}
+  \sum_{U_R} e^{2 \pi i \left( \tfrac{1}{2} \left( n - [Y^{-1}y] \right)
+    \cdot X \left( n - [Y^{-1}y] \right) +
+    \left( n - [Y^{-1}y] \right) \cdot x \right)}
+    e^{- ||v(n)||^2}
+\end{equation}
+with absolute error $\epsilon$. The approximate of the sum is uniform in $z$.
+Here $v(n) = \sqrt{\pi} T \left( n + [[Y^{-1}y]] \right)$,
+\begin{equation} \label{eqn: uniform points}
+  U_R = \left\{ n \in \ZZ^g \; | \; \pi (n-c) \cdot Y (n-c) < R^2,
+                |c_j| < 1/2 \; \forall j = 1,\ldots,g \right\}.
+\end{equation}
+Let $\Lambda = \left\{ \sqrt{\pi}T \left( n + [[Y^{-1}y]] \right) \; | \; n \in
+\ZZ^g \right\}$. The shortest distance between any two points of $\Lambda$ is
+denoted by $\rho$. Then the radius $R$ is determined as the greater of
+$(\sqrt{2g} + \rho)/2$ and the real positive solution of $\epsilon =
+g2^{g-1}\Gamma(g/2,(R-\rho/2)^2)/\rho^g$.
+\end{theorem}
+
+
+Note that $\rho$ is also equal to the length of the shorest lattice vector of
+the lattice $\hat{\Lambda} = \sqrt{\pi}T\ZZ^g$.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Modular Transformation and Theta Functions}
+\section{Siegel Transformation and Sympectic Geometry}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
+
+In the previous section, the subset of $\ZZ^g$ over which we truncate our
+evaluation of theta, $U_R$, is a collection of integer vectors lying inside the
+ellipsoid $\pi z \cdot Yz = R$. If the ellipsoid has high eccentricity then it
+is possible that both $|U_R|$ is large and the magnitudes of the elements of
+$U_R$ are large. These two situations can contribute to numerical error in an
+implementation of the algorthm.
+
+
+
+
+%------------------------------------------------------------------------------
+\subsection{Theta Functions Under Modular Transformations}
+%------------------------------------------------------------------------------
 
 This high eccentricity situation can be mitigated by using modular
-transformations on the Riemann matirx $\Omega$ in order to map the
-problem into one where we instead compute $\theta(\hat{z},
-\hat{\Omega})$ on a new lattice $\hat{U}_R$ that has smaller
-eccentricity. Given a symplectic matrix over the integers
+transformations on the Riemann matirx $\Omega$ in order to map the problem into
+one where we instead compute $\theta(\hat{z}, \hat{\Omega})$ on a new lattice
+$\hat{U}_R$ that has smaller eccentricity.
+
+Given a symplectic matrix over the integers
 \[
 \Gamma = \left( \begin{matrix} a & b \\ c & d \end{matrix} \right)
 \in SP(2g,\mathbb{Z})
 \]
-this corresponds to the modular transformation
+$\Gamma$ acts on $\hg$ by the ``modular transformation''
 \[
 \Omega \mapsto \hat{\Omega} = (a\Omega + b) (c\Omega + d)^{-1}.
 \]
-By [Tata I], the Riemann theta function satisfies the following
-functional equations under certain modular transformations. The listed
-modular tranformations form a basis for the modular group $SP(2g,
-\mathbb{Z})$.
+By [Tata I], the Riemann theta function satisfies the following functional
+equations under certain modular transformations. The listed modular
+tranformations form a basis for the modular group $SP(2g, \mathbb{Z})$.
+\begin{gather} \label{eqn: full transformation}
+\theta \left( 
+(c \Omega + d)^{-1} z, (a \Omega + b)(c \Omega + d)^{-1}
+\right) = \notag \\
+\qquad \qquad
+\sqrt{\det(c \Omega + d)}
+e^{\pi i z \cdot (c \Omega + d)^{-1} c z}
+\theta(z, \Omega)
+\end{gather}
+
 
 \begin{table}[h]
 \label{tbl: transformations}
@@ -85,10 +194,17 @@ modular tranformations form a basis for the modular group $SP(2g,
   Symplectic Transform & Transformed Matrix & Functional Eq. \\ \hline
   $\Gamma = \left[ \begin{smallmatrix} a & 0 \\ 0 &
       a^{-T} \end{smallmatrix} \right]$ & $\hat{\Omega} = a \Omega
-  a^T$ & $\theta(z,\Omega) = \theta(az,a\Omega a^T)$ \\ $\Gamma =
-  \left[ \begin{smallmatrix} I & b \\ 0 & I \end{smallmatrix} \right]$
-  & $\hat{\Omega} = \Omega + b$ & $\theta(z,\Omega) = \theta(z, \Omega
-  + b)$
+  a^T$ & $\theta(z,\Omega) = \theta(az,a\Omega a^T)$ \\
+
+  $\Gamma = \left[ \begin{smallmatrix} I & b \\ 0 &
+      I \end{smallmatrix} \right]$ & $\hat{\Omega} = \Omega + b$ &
+  $\theta(z,\Omega) = \theta(z, \Omega + b)$ \\
+
+  $\Gamma = \left[ \begin{smallmatrix} 0 & -I \\ I &
+      0 \end{smallmatrix} \right]$ & $\hat{\Omega} = -\Omega^{-1}$ &
+  $\theta(\Omega^{-1}, -\Omega^{-1}) =$ \\
+
+  & & $\sqrt{\det(-i\Omega)}e^{\pi i z \cdot \Omega^{-1} z} \theta(z,\Omega)$
 \end{tabular}
 \end{table}
 
@@ -97,41 +213,57 @@ modular tranformations form a basis for the modular group $SP(2g,
 \section{Algorithm}
 
 \begin{algorithm}
-\caption{Compute the Siegel Transform of a Riemann Matrix}
+\caption{Siegel Transform of a Riemann Matrix}
 \label{alg: siegel}
 \begin{algorithmic}
   \Procedure{Siegel}{$\Omega$} 
   \Comment{$\Omega$ a $g \times g$ Riemann matrix}
 
   \State $\Gamma \gets I_{2g}$
-  \Comment{$I_{2g} = g \times g$ identity matrix}
-  \State $a \gets \left[ \begin{smallmatrix} 0 & \mathbf{0}^T \\ \mathbf{0} & I_{g-1} \end{smallmatrix} \right]$
+  \Comment{$I_{2g} = 2g \times 2g$ identity matrix}
+  \State $a \gets \left[ \begin{smallmatrix} 0 & \mathbf{0}^T \\
+      \mathbf{0} & I_{g-1} \end{smallmatrix} \right]$
   \Comment{$\mathbf{0} = $ column vector with $g-1$ zeros}
-  \State $b \gets \left[ \begin{smallmatrix} -1 & \mathbf{0}^T \\ \mathbf{0} & \mathbf{0}_{g-1} \end{smallmatrix} \right]$
+  \State $b \gets \left[ \begin{smallmatrix} -1 & \mathbf{0}^T \\
+      \mathbf{0} & \mathbf{0}_{g-1} \end{smallmatrix} \right]$
   \Comment{$\mathbf{0}_{g-1} = (g-1) \times (g-1)$ zero matrix}
-  \State $c \gets \left[ \begin{smallmatrix} 1 & \mathbf{0}^T \\ \mathbf{0} & \mathbf{0}_{g-1} \end{smallmatrix} \right]$
-  \State $d \gets \left[ \begin{smallmatrix} 0 & \mathbf{0}^T \\ \mathbf{0} & I_{g-1} \end{smallmatrix} \right]$
+  \State $c \gets \left[ \begin{smallmatrix} 1 & \mathbf{0}^T \\
+      \mathbf{0} & \mathbf{0}_{g-1} \end{smallmatrix} \right]$
+  \State $d \gets \left[ \begin{smallmatrix} 0 & \mathbf{0}^T \\
+      \mathbf{0} & I_{g-1} \end{smallmatrix} \right]$
   \State $\texttt{finished} \gets \texttt{False}$
-  \While{{\tt finshed} $ \neq $ {\tt True}}
+  \While{{\tt finished} $ \neq $ {\tt True}}
     \State $Y \gets \text{Im } \Omega$
     \State $T \gets \textsc{Cholesky}(Y)^T$
     \State $L \gets \textsc{SortedLLL}(T)$
     \Comment{LLL with cols. sorted by length}
     \State $U \gets$ solution to $TU = L$
-    \State $\Omega \gets U^T \Omega U, \quad \Gamma \gets \left[ \begin{smallmatrix} U^T & 0 \\ 0 & U^{-1} \end{smallmatrix} \right] \Gamma$
+    \State $\Omega \gets U^T \Omega U, \quad \Gamma \gets \left[
+      \begin{smallmatrix} U^T & 0 \\ 0 & U^{-1} \end{smallmatrix}
+      \right] \Gamma$
     \State $X \gets \text{Re } \Omega$
-    \State $\Omega \gets \Omega - [X], \quad \Gamma \gets \left[ \begin{smallmatrix} I & -[X] \\ 0 & I \end{smallmatrix} \right] \Gamma$
+    \State $\Omega \gets \Omega - [X], \quad \Gamma \gets \left[
+      \begin{smallmatrix} I & -[X] \\ 0 & I \end{smallmatrix}
+      \right] \Gamma$
     \If{$|\Omega_{11}| \geq 1$}
       \State $\texttt{finished} \gets \texttt{True}$
     \Else
-      \State $\Gamma \gets \left[ \begin{smallmatrix} a & b \\ c & d \end{smallmatrix} \right] \Gamma$
+      \State $\Gamma \gets \left[
+        \begin{smallmatrix} a & b \\ c & d \end{smallmatrix}
+        \right] \Gamma$
       \State $\Omega \gets (a\Omega + b)(c \Omega + d)^{-1}$
+      \Comment{Compute inverse using stable solver.}
     \EndIf
   \EndWhile
   \State \textbf{return} $\Omega, \Gamma$
 \EndProcedure
 \end{algorithmic}
 \end{algorithm}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Efficient Computation of Theta}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 
