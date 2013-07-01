@@ -1,0 +1,140 @@
+\documentclass{amsart}
+
+\usepackage{amsmath,amssymb}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+\title{The Siegel Transformation}
+\author{
+  Chris Swierczewski \\
+  Grady Williams
+}
+\date{11 April 2013}
+
+\begin{document}
+
+\maketitle
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Siegel Transforms}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+We wish to compute the Riemann theta function
+\[
+  \theta(z,\Omega) = \sum_{n \in \mathbb{Z}^g}
+  e^{2\pi\i \left( \tfrac{1}{2} n \cdot \Omega n + n \cdot z \right)}
+\]
+to a desired accuracy $\epsilon$. Let $z = x+iy,\Omega = X + iY$ and $Y = T^TT$
+be the Cholesky decomposition of $Y$. Let $\Lambda$ be the lattice
+\[
+  \Lambda = \sqrt{\pi}T \left( \mathbb{Z}^g + [[Y^{-1}y]] \right)
+\]
+and $\rho$ be the length of the shortest lattice vector. (Note that
+this is the length of the shortest lattice vector of $T\mathbb{Z}$
+scaled by $\sqrt{\pi}$.) Then, by [CRTF], to compute
+$\theta(z,\Omega)$ with error $\epsilon$ it is sufficient to compute
+the ``oscillatory part'' over the integer points
+\[
+  U_R = \left\{ n \in \mathbb{Z}^g \; | \; \pi n \cdot Y n < R \right\}
+\]
+where $R$ is the real positive solution to
+\[
+  \epsilon = g2^{g-1}\Gamma(g/2,(R-\rho/2)^2)/\rho^g
+\]
+and $\Gamma(s,x)$ is the incomplete gamma function.
+
+Note that $U_R$ is a collection of integer vectors lying inside the
+ellipsoid $\pi z \cdot Yz = R$. If the ellipsoid has high eccentricity
+then it is possible that both $|U_R|$ is large and the magnitudes of
+the elements of $U_R$ are large. These two situations can contribute
+to numerical error in an implementation of the algorthm.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Modular Transformation and Theta Functions}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+This high eccentricity situation can be mitigated by using modular
+transformations on the Riemann matirx $\Omega$ in order to map the
+problem into one where we instead compute $\theta(\hat{z},
+\hat{\Omega})$ on a new lattice $\hat{U}_R$ that has smaller
+eccentricity. Given a symplectic matrix over the integers
+\[
+\Gamma = \left( \begin{matrix} a & b \\ c & d \end{matrix} \right)
+\in SP(2g,\mathbb{Z})
+\]
+this corresponds to the modular transformation
+\[
+\Omega \mapsto \hat{\Omega} = (a\Omega + b) (c\Omega + d)^{-1}.
+\]
+By [Tata I], the Riemann theta function satisfies the following
+functional equations under certain modular transformations. The listed
+modular tranformations form a basis for the modular group $SP(2g,
+\mathbb{Z})$.
+
+\begin{table}[h]
+\label{tbl: transformations}
+
+\centering
+\begin{tabular}{ccc}
+  Symplectic Transform & Transformed Matrix & Functional Eq. \\ \hline
+  $\Gamma = \left[ \begin{smallmatrix} a & 0 \\ 0 &
+      a^{-T} \end{smallmatrix} \right]$ & $\hat{\Omega} = a \Omega
+  a^T$ & $\theta(z,\Omega) = \theta(az,a\Omega a^T)$ \\ $\Gamma =
+  \left[ \begin{smallmatrix} I & b \\ 0 & I \end{smallmatrix} \right]$
+  & $\hat{\Omega} = \Omega + b$ & $\theta(z,\Omega) = \theta(z, \Omega
+  + b)$
+\end{tabular}
+\end{table}
+
+
+
+\section{Algorithm}
+
+\begin{algorithm}
+\caption{Compute the Siegel Transform of a Riemann Matrix}
+\label{alg: siegel}
+\begin{algorithmic}
+  \Procedure{Siegel}{$\Omega$} 
+  \Comment{$\Omega$ a $g \times g$ Riemann matrix}
+
+  \State $\Gamma \gets I_{2g}$
+  \Comment{$I_{2g} = g \times g$ identity matrix}
+  \State $a \gets \left[ \begin{smallmatrix} 0 & \mathbf{0}^T \\ \mathbf{0} & I_{g-1} \end{smallmatrix} \right]$
+  \Comment{$\mathbf{0} = $ column vector with $g-1$ zeros}
+  \State $b \gets \left[ \begin{smallmatrix} -1 & \mathbf{0}^T \\ \mathbf{0} & \mathbf{0}_{g-1} \end{smallmatrix} \right]$
+  \Comment{$\mathbf{0}_{g-1} = (g-1) \times (g-1)$ zero matrix}
+  \State $c \gets \left[ \begin{smallmatrix} 1 & \mathbf{0}^T \\ \mathbf{0} & \mathbf{0}_{g-1} \end{smallmatrix} \right]$
+  \State $d \gets \left[ \begin{smallmatrix} 0 & \mathbf{0}^T \\ \mathbf{0} & I_{g-1} \end{smallmatrix} \right]$
+  \State $\texttt{finished} \gets \texttt{False}$
+  \While{{\tt finshed} $ \neq $ {\tt True}}
+    \State $Y \gets \text{Im } \Omega$
+    \State $T \gets \textsc{Cholesky}(Y)^T$
+    \State $L \gets \textsc{SortedLLL}(T)$
+    \Comment{LLL with cols. sorted by length}
+    \State $U \gets$ solution to $TU = L$
+    \State $\Omega \gets U^T \Omega U, \quad \Gamma \gets \left[ \begin{smallmatrix} U^T & 0 \\ 0 & U^{-1} \end{smallmatrix} \right] \Gamma$
+    \State $X \gets \text{Re } \Omega$
+    \State $\Omega \gets \Omega - [X], \quad \Gamma \gets \left[ \begin{smallmatrix} I & -[X] \\ 0 & I \end{smallmatrix} \right] \Gamma$
+    \If{$|\Omega_{11}| \geq 1$}
+      \State $\texttt{finished} \gets \texttt{True}$
+    \Else
+      \State $\Gamma \gets \left[ \begin{smallmatrix} a & b \\ c & d \end{smallmatrix} \right] \Gamma$
+      \State $\Omega \gets (a\Omega + b)(c \Omega + d)^{-1}$
+    \EndIf
+  \EndWhile
+  \State \textbf{return} $\Omega, \Gamma$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+
+
+
+\end{document}
+
