@@ -1,0 +1,283 @@
+\documentclass[12]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{color}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{hyperref}
+\hypersetup{
+    bookmarks=true,         % show bookmarks bar?
+    unicode=false,          % non-Latin characters in Acrobat’s bookmarks
+    pdftoolbar=true,        % show Acrobat’s toolbar?
+    pdfmenubar=true,        % show Acrobat’s menu?
+    pdffitwindow=false,     % window fit to page when opened
+    pdfstartview={FitH},    % fits the width of the page to the window
+    pdftitle={Efficient Modular Computation of the Riemann
+      Theta Function},    % title
+    pdfauthor={Swierczewski and Williams},     % author
+    pdfcreator={Swierczewski},   % creator of the document
+    pdfkeywords={mathematics} {theta functions} {siegel transform},
+    pdfnewwindow=true,      % links in new window
+    colorlinks=false,       % false: boxed links; true: colored links
+    linkcolor=red,          % color of internal links
+    citecolor=green,        % color of links to bibliography
+    filecolor=magenta,      % color of file links
+    urlcolor=cyan           % color of external links
+}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+
+\DeclareMathOperator{\ZZ}{\mathbb{Z}}
+\DeclareMathOperator{\RR}{\mathbb{R}}
+\DeclareMathOperator{\CC}{\mathbb{C}}
+\DeclareMathOperator{\hg}{\mathfrak{h}_g}
+\DeclareMathOperator{\dx}{dx}
+
+\newcommand{\thchar}[2] {\begin{bmatrix}#1\\#2\end{bmatrix}}
+\newcommand{\thcharsm}[2] {\left[ \begin{smallmatrix} #1
+      \\ #2 \end{smallmatrix} \right]}
+
+
+\title{Computing the Riemann Constant Vector}
+\author{
+  \centering
+  \footnotesize
+  \begin{tabular}{ccc}
+    % names
+    Matthew Patterson &
+    Chris Swierczewski &
+    Bernard Deconinck \\
+    % address 1
+    (Matt's Address) &
+    University of Washington &
+    University of Washington \\
+    % address 2
+    (Matt's Address) &
+    Department of Applied Mathematics &
+    Department of Applied Mathematics \\
+    % address 3
+    (Matt's Address) &
+    Seattle, WA 98195-3925 &
+    Seattle, WA 98195-3925 \\
+    % email
+    \href{mailto:matt@patterson.com}{\tt matt@patterson.com} &
+    \href{mailto:cswiercz@uw.edu}{\tt cswiercz@uw.edu} &
+    \href{mailto:bernard@uw.edu}{\tt bernard@uw.edu}
+  \end{tabular}
+}
+\date{\today}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\maketitle
+
+\begin{abstract}
+We present a mathematical algorithm and implementation for computing the
+vector of Riemann constants on a Riemann surface given by the
+desingularization and compactification of a complex algebraic curve. A
+current implementation is given in the Python-based software package
+{\sc abelfunctions} (\url{http://github.com/cswiercz/abelfunctions}).
+\end{abstract}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Introduction}\label{sec:intro}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Given a Riemann surface $X$ and a fixed ``base place'' $P_0$ the
+vector of Riemann constants (VRC)
+\[
+  K(P_0) \in J(X)
+\]
+is given by
+\begin{gather} \label{eqn: vrc}
+  K(P_0) = \left( K_1(P_0), \ldots, K_g(P_0) \right) \\
+  K_j(P_0) = \frac{1 + B_{jj}}{1}
+             - \sum_{k \neq j}^g \omega_k(P) A_j(P_0,P)
+\end{gather}
+where
+\begin{itemize}
+  \item $J(X)$ is the Jacobian of the surface,
+  \item $B \in \CC^{g \times g}$ is Riemann matrix obtained from the
+    matrix of periods $\tau = [I \; B]$ of the surface,
+  \item $\omega_1, \ldots, \omega_g$ is a normalized basis of
+    holomorphic one-forms defined on the surface,
+  \item $A : X \to J(X)$ is the Abel map
+    \[
+        A(P_0,P) = \left(
+        \int_{P_0}^P \omega_1, \ldots, \int_{P_0}^P \omega_g
+        \right).
+    \]
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Computing a Canonical Divisor}\label{sec: canonical}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+A basis of holomorphic one-forms on the Riemann surface are of the form
+\[
+    \omega_j = \frac{h_j(x,y)}{\partial_j f(x,y)} \dx
+\]
+where
+\[
+    h_j(x,y) = \sum_{k+m \leq d-3} c_{jkl}x^ky^l.
+\]
+Typically, we choose a basis of holomorphic one-forms which are
+normalized with respect to the a-periods of the Riemann surface. In
+determining a canonical divisor we do not need such one-forms.
+
+Let $\nu$ be a meromorphic differential with zeros at the places $P_j$
+with multiplicities $p_j$ and poles at the places $Q_j$ with
+multiplicities $q_j$. Then, the divisor
+\begin{equation} \label{eqn: valuation divisor}
+  (\nu)_\text{val} = \sum_{i=1}^m p_jP_j - \sum_{i=1}^n q_jQ_j
+\end{equation}
+is canonical.
+
+
+\begin{algorithm}
+\caption{{\tt canonical()} - canonical divisors of a Riemann surface}
+\label{alg: canonical}
+\begin{algorithmic}[1]
+\Require (none)
+
+\Ensure $\text{length}(\mathcal{C}) = g$
+
+\Ensure $\deg \mathcal{C}_j = 2g - 2$ for $j = 1, \ldots, g$.
+
+\State $\mathcal{D}_j \gets 0$ for $j = 1, \ldots, g$
+
+\State $\mathcal{W} \gets \{\omega_1, \ldots, \omega_g\}$
+
+\State $\mathcal{X}_j \gets \left\{ \alpha \in \CC \; : \; \exists
+Q_l^{\alpha} \in X \text{ where } \omega \big|_{Q_l^\alpha} = 0
+\right\}$ for $j = 1, \ldots, g$
+
+\For{$\omega_j \in \mathcal{W}$}
+
+    \For{$\alpha_k \in \mathcal{X}_j$}
+
+        \State $\mathcal{Q} \gets \left\{ Q_1^{\alpha_k}, Q_2^{\alpha_k},
+        \ldots \right\}$
+
+        \For{$Q_l^{\alpha_k} \in \mathcal{Q}$}
+
+            \State $q_{jkl} \gets \text{val}\left(\omega_j,
+            Q_l^{\alpha_k}\right)$
+
+            \If{$q_{jkl} = 0$}
+                \State {\bf break}
+            \EndIf
+
+
+            \State $\mathcal{D}_j \gets \mathcal{D}_j + q_{jkl}
+            Q_l^{\alpha_k}$
+
+            \If{$\deg \mathcal{D}_j = 2g - 2$}
+
+                \State $\mathcal{C}_j \gets \mathcal{D}_j$
+                \Comment{break here if only one divisor is needed}
+
+            \EndIf
+
+        \EndFor
+
+    \EndFor
+
+\EndFor
+
+\State {\bf return} $\mathcal{C} = \left\{ \mathcal{C}_1, \ldots,
+\mathcal{C}_g \right\}$
+
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Notes on Algorithm \ref{alg: canonical}}
+
+Often, such as in computing the RCV, one only needs a single canonical
+divisor. A flag can be optionally provided so that Algorithm \ref{alg:
+  canonical} stops execution the moment a single canonical divisor is
+obtained.
+
+Computing the sets $\mathcal{X}_j$ can be made more efficient if a
+particular order is imposed and further time savings are possible if the
+necessary discriminant points and zeros of the numerators of the
+differentials are computed only as needed.
+
+
+\section{Computing the Riemann Constant Vector}
+
+
+\begin{algorithm}
+\caption{\tt riemann\_constant\_vector()}
+\label{alg: rcv}
+\begin{algorithmic}[1]
+
+\Require a Riemann surface $X$
+
+\Require tolerances $\epsilon_1$ and $\epsilon_2$ \Comment
+$\theta$-function accuracies
+
+\Require a canonical divisor $\mathcal{C}$
+
+\Ensure a half lattice vector $h$
+
+\State $Z \gets \tfrac{1}{2} A(P^l, \mathcal{C})$
+
+\State $\mathcal{J} \gets \left( 1, \ldots, 2^{2g} \right)$
+
+\State $\theta_{\epsilon_1} \gets$ the Riemann theta function uniformly
+accurate to order $\epsilon_1$
+
+\For{$j \in \mathcal{J}$} \Comment Pass \# 1
+
+    \State $\kappa_j \gets [[h_j - Z]]$
+
+    \If{$|| \theta_{\epsilon_1}(\kappa_j) || > \epsilon_1$}
+
+        \State remove $j$ from $\mathcal{J}$
+
+    \EndIf
+
+\EndFor
+
+\State {\bf assert} $\mathcal{J} \neq \emptyset$
+
+\State {\bf return} $h_{j^*}$ {\bf if} $\mathcal{J} = \{j^*\}$
+
+\State $\theta_{\epsilon_2} \gets$ the Riemann theta function uniformly
+accurate to order $\epsilon_2$
+
+\State $\mathcal{D}_0 \gets P_1 + \cdots P_{g-1}$ an effective, degree
+$g-1$ divisor where the $P_i$'s are distinct regular places on $X$
+
+\For{$j \in \mathcal{J}$} \Comment Pass \# 2
+
+    \State $\tilde{\kappa} \gets [[ h_j - Z + A(P^l, \mathcal{D}_0) ]]$
+
+    \If{$|| \theta_{\epsilon_2}(\tilde{\kappa}_j) || > \epsilon_2$}
+
+        \State remove $j$ from $\mathcal{J}$
+
+    \EndIf
+
+\EndFor
+
+\State {\bf assert} $\mathcal{J} \neq \emptyset$
+
+\State {\bf return} $h_{j^*}$ {\bf if} $\mathcal{J} = \{j^*\}$
+
+
+\end{algorithmic}
+\end{algorithm}
+
+
+
+%% \bibliographystyle{plain}
+%% \bibliography{../papers.bib}
+
+\end{document}
+
