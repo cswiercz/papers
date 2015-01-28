@@ -29,8 +29,8 @@ endif
 
 %.dvi : %.tex
 	$(LATEX) $<
-#	$(BIBTEX) $(subst tex,aux,$<)
-#	$(LATEX) $<
+	$(BIBTEX) $(subst tex,aux,$<)
+	$(LATEX) $<
 	$(LATEX) $<
 
 %.ps : %.dvi
@@ -43,7 +43,7 @@ default: $(TARGET).$(EXT)
 	$(VIEWER) $(TARGET).$(EXT)
 
 clean:
-	-rm -f $(TARGET).{aux,log,nav,out,snm,toc,vrb}
+	-rm -f $(TARGET).{aux,log,nav,out,snm,toc,vrb,bbl}
 	-rm -f ./*~
 
 clobber: clean

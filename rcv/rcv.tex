@@ -1,6 +1,9 @@
-\documentclass[12]{article}
+\documentclass[12pt]{article}
 
-\usepackage{amsmath,amssymb}
+\usepackage{fullpage}
+
+\usepackage{amsmath,amssymb,amsthm}
+%\usepackage{verbatim}
 \usepackage{color}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
@@ -12,11 +15,10 @@
     pdfmenubar=true,        % show Acrobat’s menu?
     pdffitwindow=false,     % window fit to page when opened
     pdfstartview={FitH},    % fits the width of the page to the window
-    pdftitle={Efficient Modular Computation of the Riemann
-      Theta Function},    % title
-    pdfauthor={Swierczewski and Williams},     % author
+    pdftitle={Computing the Riemann Constant Vector},    % title
+    pdfauthor={Swierczewski, Patterson, and Deconinck},     % author
     pdfcreator={Swierczewski},   % creator of the document
-    pdfkeywords={mathematics} {theta functions} {siegel transform},
+    pdfkeywords={mathematics} {algebraic geometry} {riemann constant vector} {theta functions} {abel map} {jacobian},
     pdfnewwindow=true,      % links in new window
     colorlinks=false,       % false: boxed links; true: colored links
     linkcolor=red,          % color of internal links
@@ -24,15 +26,77 @@
     filecolor=magenta,      % color of file links
     urlcolor=cyan           % color of external links
 }
+\renewcommand{\algorithmicrequire}{\textbf{Input:}\,}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+
+%
+% custom listings (code example) design
+%
+\usepackage{listings}
+\newcounter{ipythoncounter}
+\setcounter{ipythoncounter}{1}
+
+\renewcommand{\ttdefault}{pcr}
+\lstset{
+  basicstyle=\footnotesize\ttfamily,
+  language=Python,
+  numbers=left,
+  stepnumber=9999,
+  numberfirstline=true,
+  xleftmargin=2cm,
+}
+
+\lstnewenvironment{ipythoninput}
+                  {
+                    \setcounter{lstnumber}{\value{ipythoncounter}}
+%                    \renewcommand{\thelstnumber}
+%                                 {\bf\ttfamily In [\the\value{lstnumber}]:}
+                    \renewcommand{\thelstnumber}
+                                 {\bf\ttfamily In [\the\value{ipythoncounter}]:}
+                    \lstset{
+                      frame=single,
+                      frameround=tttt,
+                      name=ipythoninput,
+                    }
+                  }
+                  {
+                    \addtocounter{ipythoncounter}{1}
+                  }
+
+\lstnewenvironment{ipythonoutput}
+                  {
+                    \addtocounter{ipythoncounter}{-1}
+                    \setcounter{lstnumber}{\value{ipythoncounter}}
+                    \renewcommand{\thelstnumber}
+                                 {\bf\ttfamily Out[\the\value{ipythoncounter}]:}
+                    \lstset{
+                      name=ipythoninput
+                    }
+                  }
+                  {
+                    \addtocounter{ipythoncounter}{1}
+                  }
 
 \newtheorem{theorem}{Theorem}
-\newtheorem{definition}{Definition}
+\newtheorem{definition}[theorem]{Definition}
+
+\theoremstyle{definition}
+\newtheorem{example}[theorem]{Example}
+
 
 \DeclareMathOperator{\ZZ}{\mathbb{Z}}
 \DeclareMathOperator{\RR}{\mathbb{R}}
 \DeclareMathOperator{\CC}{\mathbb{C}}
 \DeclareMathOperator{\hg}{\mathfrak{h}_g}
-\DeclareMathOperator{\dx}{dx}
+%% \DeclareMathOperator{\dx}{dx}
+%% \DeclareMathOperator{\dt}{dt}
+\newcommand{\dx}{\,\mathrm{d}x}
+\newcommand{\dt}{\,\mathrm{d}t}
+\DeclareMathOperator{\DivC}{\mathcal{C}}
+\DeclareMathOperator{\DivD}{\mathcal{D}}
+\DeclareMathOperator{\RCV}{\boldsymbol{K}}
+\DeclareMathOperator{\Abel}{\boldsymbol{A}}
+\DeclareMathOperator{\HalfLattice}{\Lambda_{1/2}}
 
 \newcommand{\thchar}[2] {\begin{bmatrix}#1\\#2\end{bmatrix}}
 \newcommand{\thcharsm}[2] {\left[ \begin{smallmatrix} #1
@@ -45,25 +109,25 @@
   \footnotesize
   \begin{tabular}{ccc}
     % names
+    Bernard Deconinck &
     Matthew Patterson &
-    Chris Swierczewski &
-    Bernard Deconinck \\
+    Chris Swierczewski \\
     % address 1
-    (Matt's Address) &
     University of Washington &
+    (Matt's Address) &
     University of Washington \\
     % address 2
-    (Matt's Address) &
     Department of Applied Mathematics &
+    (Matt's Address) &
     Department of Applied Mathematics \\
     % address 3
-    (Matt's Address) &
     Seattle, WA 98195-3925 &
+    (Matt's Address) &
     Seattle, WA 98195-3925 \\
     % email
+    \href{mailto:bernard@uw.edu}{\tt bernard@uw.edu} &
     \href{mailto:matt@patterson.com}{\tt matt@patterson.com} &
-    \href{mailto:cswiercz@uw.edu}{\tt cswiercz@uw.edu} &
-    \href{mailto:bernard@uw.edu}{\tt bernard@uw.edu}
+    \href{mailto:cswiercz@uw.edu}{\tt cswiercz@uw.edu}
   \end{tabular}
 }
 \date{\today}
@@ -75,144 +139,810 @@
 \maketitle
 
 \begin{abstract}
-We present a mathematical algorithm and implementation for computing the
-vector of Riemann constants on a Riemann surface given by the
-desingularization and compactification of a complex algebraic curve. A
-current implementation is given in the Python-based software package
-{\sc abelfunctions} (\url{http://github.com/cswiercz/abelfunctions}).
+The Riemann constant vector is a fundamental ingredient in the study of
+Riemann surfaces and their Jacobians. It appears in many applications
+including the Jacobi inversion problem, the study of the theta divisor,
+and solutions to integrable partial differential equations.
+
+We present a mathematical algorithm and an implementation for computing
+the vector of Riemann constants on a Riemann surface given by the
+desingularization and compactification of a complex algebraic curve. The
+implementation and source code is provided in the Python software
+package {\sc abelfunctions}.
 \end{abstract}
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Introduction}\label{sec:intro}
+\section{Introduction}\label{sec:introduction}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Given a Riemann surface $X$ and a fixed ``base place'' $P_0$ the
-vector of Riemann constants (VRC)
-\[
-  K(P_0) \in J(X)
-\]
-is given by
-\begin{gather} \label{eqn: vrc}
-  K(P_0) = \left( K_1(P_0), \ldots, K_g(P_0) \right) \\
-  K_j(P_0) = \frac{1 + B_{jj}}{1}
-             - \sum_{k \neq j}^g \omega_k(P) A_j(P_0,P)
-\end{gather}
-where
+{\it Paragraph: answer the following
 \begin{itemize}
-  \item $J(X)$ is the Jacobian of the surface,
-  \item $B \in \CC^{g \times g}$ is Riemann matrix obtained from the
-    matrix of periods $\tau = [I \; B]$ of the surface,
-  \item $\omega_1, \ldots, \omega_g$ is a normalized basis of
-    holomorphic one-forms defined on the surface,
-  \item $A : X \to J(X)$ is the Abel map
-    \[
-        A(P_0,P) = \left(
-        \int_{P_0}^P \omega_1, \ldots, \int_{P_0}^P \omega_g
-        \right).
-    \]
+  \item What is the problem?
+
+    Compute the Riemann constant vector for arbitrary complex plane
+    curves at arbitrary places.
+
+  \item Why is this problem important?
+
+    RCV occurs in periodic solutions to nonlinear integrable PDEs.  A
+    fundamental property of Riemann surfaces.  Primary ingredient, along
+    with theta, in computing Abelian functions.
+
+  \item What has been done for far on the problem?
+
+    Maple implementation by Matt Patterson.  Other attempts?
+    Hyperelliptic solution?  Check Fay’s thesis, Baker.
+
+  \item What is the main contribution of the paper to the problem?
+
+    Emphasize that it’s for a general case surface. Provide a
+    step-by-step, realizable mathematical algorithm. Provide and
+    describe the current implementation.
+
+  \item Why is the contribution original?
+
+    (literature review) Probably only done for hyperelliptic case. (?)
+
+  \item Why is the contribution non-trivial?
+
+    Again, general case.
+\end{itemize}
+}
+
+The primary contribution of this paper is to provide an abstract
+algorithm and software implementation for computing the Riemann Constant
+Vector for an arbitrary Riemann surface given by the desingularization
+and compactifications of a complex plane curve.
+
+[Paragraph: mention implementation in abelfunctions, how to obtain,
+  etc.]
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Definitions and Background}\label{sec:background}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+
+{\it
+Necessary background based on rest of paper:
+\begin{itemize}
+  \item Curves and Riemann surfaces: connection between the two. RS
+
+    projects onto curve.
+  \item Places: Puiseux representation, infinite places, the base place,
+    define regular and singular (ramified?) places
+  \item Divisors: valuation divisors of mero functions, differentials,
+    degree, canonical divisor. Probably won't need to talk about linear
+    independence of divisors.
+\end{itemize}
+}
+
+%------------------------------------------------------------------------------
+\subsection{Riemann Surfaces}
+%------------------------------------------------------------------------------
+
+
+Let $C$ be a complex plane algebraic curve $C = \{(\alpha,\beta) \in
+\CC^2 : f(\alpha,\beta) = 0\}$ where $f \in \CC[x,y]$ is a polynomial
+$f(x,y) = \sum_{k=0}^n a_k(x) y^k$. Let $X$ be the genus $g$ compact and
+connected Riemann surface obtained by desingularizing and compactifying
+the curve $C$. Every compact and connected Riemann surface can be
+obtained in this way \cite{Griffiths89}.
+
+The first homology group $H_1(X,\ZZ)$ of $X$ is the collection of all
+cycles on $X$ modulo homologous transformations. $H_1(X,\ZZ)$ has a
+canonical basis of cycles $\{a_1,\ldots,a_g,b_1,\ldots,b_g\}$. The space
+of holomorphic 1-forms $\Gamma(X,\Omega_X^1)$ on $X$ is the collection
+of all 1-forms $\omega \in \Omega_X^1$ such that for each local
+coordinate $z_\alpha : U_\alpha \subset X \to \CC$,
+\[
+  \omega \big|_{U_\alpha}  = h_\alpha(z_\alpha) dz_\alpha
+\]
+where $h_\alpha : U_\alpha \to \CC$ is a holomorphic
+function. $\Gamma(X,\Omega_X^1)$ has a basis of holomorphic 1-forms
+$\{\omega_1, \ldots, \omega_g\}$.
+
+We define the Jacobian of $X$, $J(X)$ using these two
+ingredients. Construct the {\it period matrix} $\tau = [A \; B]$ of $X$
+where
+\begin{gather} \label{eqn:periodmatrix}
+  A = (A_{ij})_{i,j=1}^g, \quad A_{ij} = \oint_{a_j} \omega_i, \notag \\
+  B = (B_{ij})_{i,j=1}^g, \quad B_{ij} = \oint_{b_j} \omega_i.
+\end{gather}
+We choose to normalize the 1-forms $\omega_i$ such that $A = I_{g \times
+  g}$, the $g \times g$ identity matrix, resulting in the period matrix
+$\tau = [I_{g \times g} \; \Omega]$. By the Riemann bilinear relations
+this is equivalent to setting $\Omega = A^{-1}B$. The matrix $\Omega$ is
+a {\it Riemann matrix}: a symmetric complex $g \times g$ matrix with
+positive definite imaginary part. See [XXX] for more information on
+period matrices of Riemann surfaces and their Jacobians.
+
+\begin{example}
+  {\it (Include computational example of homology, 1-forms, and period
+    matrix.)}
+\end{example}
+
+
+
+%------------------------------------------------------------------------------
+\subsection{Places and Divisors}
+%------------------------------------------------------------------------------
+
+
+
+Given a place $P \in X$ we can compute a local representation of the
+Riemann surface centered at $P$ using Puiseux series [Citation].
+\begin{align} \label{eqn:puiseux}
+  P =
+  \begin{cases}
+    x_P(t) = \alpha + \lambda t^e, \\
+    y_P(t) = \sum_{k=0}^\infty \beta_k t^{n_k},
+  \end{cases}
+\end{align}
+where $t$ is a local parameter, $\alpha, \lambda, \beta_k \in \CC$, and
+$e, n_k \in \ZZ$. Places $P \in X$ lie ``above'' the curve $C$ in the
+sense that evaluating $P = (x_P(t), y_P(t))$ at $t=0$ maps the place $P$
+to point $(\alpha,\beta)$ on the curve $C$.
+
+\begin{example}
+  {\it Include computational example of places.}
+
+  Let $X$ be the Riemann surface obtained from the curve $C: f(x,y) =
+  [XXX] = 0$. There are [XXX] places on $X$ lying above $C$ where
+  $x_P(0) = 0$.
+  \begin{align}
+    P_0 =
+    \begin{cases}
+      x_{P_0}(t) = [XXX] \\
+      y_{P_0}(t) = [XXX],
+    \end{cases} \notag \\
+    P_1 =
+    \begin{cases}
+      x_{P_1}(t) = [XXX] \\
+      y_{P_1}(t) = [XXX].
+    \end{cases}
+  \end{align}
+
+  Using {\sc abelfunctions} we can compute places on $X$:
+
+\begin{ipythoninput}
+from abelfunctions import *
+from sympy.abc import x,y
+
+f = ...
+X = RiemannSurface(f,x,y)
+places_above_zero = X(0)
+for P in places_above_zero:
+    print P
+    print
+\end{ipythoninput}
+\begin{ipythonoutput}
+x(t) = ...
+y(t) = ...
+
+x(t) = ...
+y(t) = ...
+\end{ipythonoutput}
+
+  We can verify that these places map to points on the curve:
+
+\begin{ipythoninput}
+for P in places_above_zero:
+    alpha,beta = P(0)
+    print f.subs({x:alpha, y:beta})
+\end{ipythoninput}
+\begin{ipythonoutput}
+[XXX]
+[XXX]
+\end{ipythonoutput}
+
+\end{example}
+
+\begin{definition} \label{def:divisor}
+A divisor $\DivD$ on the Riemann surface $X$ is a finite formal linear
+combination of places $P_i$ with multiplicities $n_i$
+\[
+\DivD = \sum_i n_i P_i.
+\]
+The sum
+\[
+\deg \DivD = \sum_i n_i
+\]
+is called the degree of $\DivD$.
+\end{definition}
+The set of all divisors forms an Abelian group $\text{Div}(X)$. A
+divisor with all $n_i \geq 0$ is called {\it positive} or {\it
+  effective}. A special type of divisor, important to the calculation of
+the Riemann constant vector, is obtained by examining the root and pole
+structure of a meromorphic differential on $X$.
+\begin{definition} \label{def:valuationdivisor}
+Let $\nu \in \Omega_X^1$ with zeros with multiplicities $p_j$ at the
+places $P_j$ and poles with multiplicities $q_j$ at the places
+$Q_j$. Then
+\begin{equation} \label{eqn: valuation divisor}
+  (\nu)_\text{val} = \sum_{i=1}^m p_iP_i - \sum_{j=1}^n q_jQ_j
+\end{equation}
+is called the valuation divisor of $\nu$.
+\end{definition}
+A divisor $\DivC \in \text{Div}(X)$ is called {\it canonical} if $\DivC
+= (\nu)_\text{val}$ for some meromorphic differential $\nu$ on $X$. All
+canonical divisors have the same degree and, by the Riemann--Roch
+theorem, this degree is $\deg \DivC = 2g - 2$ [XXX][Citation]. Note that
+every {\it holomorphic} differential is trivially meromorphic and its
+valuation divisor has $q_j = 0$ for all $j$. Consequently, every
+holomorphic differential has exactly $2g-2$ zeros including
+multiplicities.
+
+
+\begin{example}
+  {\it (Include computational example of Divisors.)}
+\begin{ipythoninput}
+D = sum(places_over_zero)
+print D
+print D.degree()
+\end{ipythoninput}
+\begin{ipythonoutput}
+[XXX]
+\end{ipythonoutput}
+\begin{ipythoninput}
+print D
+\end{ipythoninput}
+\begin{ipythonoutput}
+[XXX]
+\end{ipythonoutput}
+
+\end{example}
+
+
+%------------------------------------------------------------------------------
+\subsection{The Abel Map}
+%------------------------------------------------------------------------------
+
+
+\begin{definition}\label{def:abelmap}
+  Let $P \in X$ be a fixed place. The Abel Map $\boldsymbol{A} : X \to
+  J(X)$ is defined
+  \begin{equation} \label{eqn:abel1}
+    \boldsymbol{A}(P,Q) = \big( A_1(P,Q), \ldots, A_g(P,Q) \big),
+  \end{equation}
+  where
+  \begin{equation} \label{eqn:abel2}
+    A_j(P,Q) = \int_P^Q \omega_j,
+  \end{equation}
+  the path chosen from $P$ to $Q$ is the same for each $A_j$, and
+  $\boldsymbol{\omega} = (\omega_1,\ldots,\omega_g)$ is the normalized
+  basis of holomorphic differentials. The Abel map can be written in
+  vector form as
+  \begin{equation} \label{eqn:abel-vector}
+    \boldsymbol{A}(P,Q) = \int_P^Q \boldsymbol{\omega}.
+  \end{equation}
+\end{definition}
+The definition of the Abel map can be extended to divisors: let $\DivD =
+\sum_i n_i P_i$. We define
+\begin{equation} \label{eqn:abel-divisors}
+  \boldsymbol{A}(P,\DivD) = \sum_i n_i \boldsymbol{A}(P,P_i).
+\end{equation}
+The Abel Map is independent of the path $\gamma$ from $P$ to $Q$ chosen
+on $X$ for if $\gamma$ and $\eta$ are two such paths then their
+difference is a linear combination of homology basis cycles. The
+integral of $\boldsymbol{\omega}$ along this closed path is a lattice
+element and therefore is congruent to zero in $J(X)$.
+
+An algorithm for computing the Abel map is described in
+\cite{DeconinckPatterson11}. The implementation in {\sc abelfunctions}
+is based on this algorithm.
+
+\begin{example}
+  {\it (Include computational example of Abel Map.)}
+
+\begin{ipythoninput}
+J = X.jacobian()
+P = places_above_zero[0]
+Q = places_above_zero[1]
+
+print Abel(P,Q)
+
+z1 = Abel(P)
+z2 = Abel(Q)
+print J(z2 - z1)
+\end{ipythoninput}
+\begin{ipythonoutput}
+[XXX]
+\end{ipythonoutput}
+
+\end{example}
+
+
+
+%------------------------------------------------------------------------------
+\subsection{Riemann Constant Vector}
+%------------------------------------------------------------------------------
+
+
+
+\begin{definition} \label{def:rcv}
+Let $X$ be a genus $g$ Riemann surface with associated Riemann matrix
+$\Omega$. The Riemann constant vector $\RCV : X \to J(X)$ is defined as
+\begin{equation} \label{eqn:rcv1}
+  \RCV(P) = \big( K_1(P), \ldots, K_g(P) \big),
+\end{equation}
+where
+\begin{equation} \label{eqn:rcv2}
+  K_j(P) = \frac{1 + \Omega_{jj}}{2} - \sum_{k \neq j}^g
+           \oint_{a_k} \omega_k(Q) A_j(P,Q).
+\end{equation}
+\end{definition}
+Once we know the value of $\RCV(P_0)$ the value of $\RCV(P)$ can be
+determined using only a shift by the Abel map:
+\begin{theorem} \label{thm:RCVshift}
+  Let $P_0,P$ be places on a genus $g$ Riemann surface $X$. Then
+  \begin{equation} \label{eqn:RCVshift}
+    \RCV(P) = \RCV(P_0) + (g-1)\Abel(P_0,P).
+  \end{equation}
+\end{theorem}
+\begin{proof}
+Let $Q$ be an arbitrary place on $X$. By the definition of the Abel map,
+$\Abel(P,Q) = \Abel(P,P_0) + \Abel(P_0,Q)$. Using this identity in the
+definition of the RCV we obtain
+\begin{align} \label{eqn:RCVshift1}
+  K_j(P)
+  &=
+  \frac{1 + \Omega_{jj}}{2}
+  -
+  \sum_{k \neq j}^g
+  \oint_{a_k} \omega_k(Q) A_j(P,Q)  \notag \\
+  &=
+  \frac{1 + \Omega_{jj}}{2}
+  -
+  \sum_{k \neq j}^g
+  \oint_{a_k} \omega_k(Q) \Big( A_j(P,P_0) + A_j(P_0,Q) \Big)  \notag \\
+  &=
+  \frac{1 + \Omega_{jj}}{2}
+  -
+  \sum_{k \neq j}^g
+  \oint_{a_k} \omega_k(Q) A_j(P,P_0)
+  -
+  \sum_{k \neq j}^g
+  \oint_{a_k} \omega_k(Q) A_j(P_0,Q).
+\end{align}
+The $j$th-component of the Abel map appearing in the first sum has no
+dependence on the variable of integration $Q$. Therefore,
+\begin{align} \label{eqn:RCVshift2}
+  K_j(P)
+  &=
+  \frac{1 + \Omega_{jj}}{2}
+  -
+  \sum_{k \neq j}^g
+  A_j(P,P_0)
+  \oint_{a_k} \omega_k(Q)
+  -
+  \sum_{k \neq j}^g
+  \oint_{a_k} \omega_k(Q) A_j(P_0,Q) \notag \\
+  &=
+  \frac{1 + \Omega_{jj}}{2}
+  -
+  (g-1) A_j(P,P_0)
+  -
+  \sum_{k \neq j}^g
+  \oint_{a_k} \omega_k(Q) A_j(P_0,Q) \notag \\
+  &=
+  K_j(P_0) + (g-1)A_j(P_0,P).
+\end{align}
+\end{proof}
+The primary computational benefit to using the result of Theorem
+\ref{thm:RCVshift} is that most of the work in evaluating $\RCV$ comes
+from evaluating it at a fixed place $P_0$. Once this is done, we only
+need the Abel map to determine $\RCV$ for all other places $P \in X$. In
+{\sc abelfunctions} a fixed place of the Riemann surface is
+automatically chosen.
+
+Theinspiration behind the algorithm for computing the RCV, described in
+the next section, comes from the following two theorems. Theorem
+\ref{thm:rcvequiv} characterizes a certain class of divisors in terms of
+the RCV, a proof of which can be found in \cite{FarkasKra92}[XXX][page
+  number].
+\begin{theorem} \label{thm:rcvequiv}
+  Let $\DivC$ be a divisor on a genus $g$ Riemann surface $X$ of degree
+  $2g - 2$. Then $\DivC$ is a divisor of a meromorphic differential $\nu
+  \in \Omega_X^1$ if and only if
+  \begin{equation} \label{eqn:rcvequiv}
+    2\RCV(P) \equiv -\Abel(P,\DivC).
+  \end{equation}
+\end{theorem}
+Theorem \ref{thm:thetadivisor} establishes a connection between the
+Riemann theta function and the RCV.
+\begin{definition} \label{def:riemanntheta}
+  The Riemann theta function $\theta: J(X) \times \hg \to \CC$ is
+  defined
+  \begin{equation} \label{eqn:riemanntheta}
+    \theta(z,\Omega)
+    =
+    \sum_{n \in \ZZ^g}
+    e^{2 \pi i \left( \tfrac{1}{2} n \cdot \Omega n + n \cdot z \right)}.
+  \end{equation}
+  This function converges absolutely and uniformly on compact sets in
+  $J(X) \times \hg$ where $\hg$ is the space of all {\it ``Riemann
+    matrices''} --- complex symmetric matrices with positive definite
+  imaginary part.
+\end{definition}
+
+\begin{theorem} \label{thm:thetadivisor}
+  Let $\Omega$ be the Riemann matrix associated with the Riemann surface
+  $X$ and $P_0 \in X$ an arbitrary place. Then a vector $\boldsymbol{W}
+  \in J(X)$ satisfies
+  \begin{equation} \label{eqn:thetadivisor1}
+    \theta(\boldsymbol{W}, \Omega) = 0
+  \end{equation}
+  if and only if there exists a divisor $\DivD = P_1 + \cdots P_{g-1}$
+  such that
+  \begin{equation} \label{eqn:thetadivisor2}
+    \boldsymbol{W} = \boldsymbol{A}(P_0, \DivD) + \boldsymbol{K}(P_0).
+  \end{equation}
+\end{theorem}
+Note that $\DivD$ above may contain a place of multiplicity greater than
+one. The primary requirement of $\DivD$ is that it is of degree $g-1$ and
+is effective. The set $\Theta := \{ \boldsymbol{W} \in J(X) :
+\theta(\boldsymbol{W},\Omega) = 0\}$ is known as the {\it theta divisor}
+of the Riemann surface $X$. It is a $(2g-2)$ real--dimensional
+subvariety of $J(X)$. Theorem \ref{thm:thetadivisor} states that $\Theta
+= \Abel\left(P_0,SX^{g-1}\right) + \boldsymbol{K}(P_0)$ where $SX^{g-1}$
+is the $(g-1)$--fold symmetric product of the Riemann surface.
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Computing the Riemann Constant Vector}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+
+In this section we present an abstract algorithm for computing the
+Riemann constant vector and a demonstration of its implementation in the
+Python library {\sc abelfunctions}. {\sc abelfunctions} is an
+open--source project and the implementation details can be freely
+examined at \verb=www.github.com/cswiercz/abelfunctions=. Documentation
+on this implementation is at \verb=abelfunctions.cswiercz.info=.
+
+We first present an overview of and motivation behind the algorithm and
+describe the algorithm details later in this section. Theorem
+\ref{thm:rcvequiv} suggests an approach to computing the RCV provided we
+can compute a canonical divisor of the Riemann surface. However, even
+with such a divisor the theorem only makes a statement about the value
+of $2\RCV(P_0)$. That is, one would like to say
+\[
+\RCV(P_0) \equiv - \tfrac{1}{2} \Abel(P_0,\DivC)
+\]
+but division is not unique modulo the lattice $\Lambda$ for there are
+$2^{2g}$ possible ``half vectors'' $\boldsymbol{h}$ such 
+
+\begin{algorithm}[H]
+\caption{\tt riemann\_constant\_vector}
+\label{alg:overview}
+\begin{algorithmic}[1]
+  \Require Riemann surface $X$
+  \Require a place $P \in X$
+  \Ensure the Riemann constant vector $\RCV(P)$
+
+  \State compute the Riemann matrix $\Omega$
+
+  \State $\DivC \gets$ \verb=canonical_divisor()=
+  \Comment{cache for performance}
+
+  \State $\boldsymbol{h} \gets$ \verb=half_lattice_vector()=
+  \Comment{cache for performance}
+
+  \State $\RCV_0 \gets \left[ \left[ \boldsymbol{h} -
+      \tfrac{1}{2}\Abel(P_0,\DivC) \right] \right]$
+  \Comment{cache for performance}
+
+  \For{$j = 1,\ldots,g$}
+
+      \State $K_j \gets \tfrac{1}{2}(1+\Omega_{jj}) + (g-1)A_j(P_0,P) -
+      (\RCV_0)_j$
+
+  \EndFor
+
+  \State \Return $\RCV = (K_1, \ldots, K_g)$
+\end{algorithmic}
+\end{algorithm}
+
+Algorithms for computing Riemann matrices $\Omega$ and the Abel map
+$\Abel(P_0,P)$ to a desired numerical accuracy are described in
+\cite{DeconinckPatterson11} and \cite{DeconinckPatterson08},
+respectively. The rest of this section presents in detail the
+subroutines \verb=canconical_divisor= and \verb=half_lattice_vector=
+which provide the necessary remaining ingredients for the above
+algorithm.
+
+
+
+%------------------------------------------------------------------------------
+\subsection{Computing a Canonical Divisor}\label{sec:canonical}
+%------------------------------------------------------------------------------
+
+
+
+Determining the zeros and poles of a meromorphic differential
+\[
+\nu = \frac{p(x,y)}{q(x,y)}\dx.
+\]
+is not as straightforward as finding the roots of the polynomials $p$
+and $q$. One challenge, for example, comes from analyzing its local
+behavior of $\dx$ at a place in terms of the local coordinate. We will
+determine a set of points $\mathcal{X}_\nu \subset \CC^*$ such that the
+zeros and poles $\nu$ are contained in the set places $P \in X$ such
+that their $x$-projections lie in $\mathcal{X}_\nu$, that is, when
+$x_P(0) \in \mathcal{X}_\nu$.
+
+First, notice that if either $p,q,$ or $\dx$ vanish at a place $P$ then
+$P$ {\it may} be a root or pole of $\nu$. It may occur, for example,
+that $p \dx$ and $q$ have the same order of vanishing at $P$ in which
+case $P$ is neither a root nor pole of $\nu$. Regardless, the vanishing
+of any of these quantities at a place $P$ is a necessary condition for
+$P$ to be a root or pole.
+
+Consider the resolvent $R(f,p)(x)$ with respect to $y$. By definition,
+the roots of $R(x)$ are the points $\alpha \in \CC_x$ such that
+\[
+f(\alpha,y) = 0 \quad \text{and} \quad p(\alpha, y) = 0
+\]
+have simultaneous solutions. For each root $\alpha$, these solutions
+form a set of tuples $\{(\alpha,\beta_{\alpha,i})\}_i$ representing the
+points on $C$ where $p$ vanishes. The resulting places on $X$ to
+consider are those whose projections onto $C$ are the aforementioned
+tuples. That is, the set of places $P$ where $x_P(0) = \alpha$ and
+$y_P(0) = \beta_{\alpha,i}$.
+
+Using the resultant, we determine the sets
+\[
+\mathcal{X}_\nu^{(1)} =
+\left\{
+\alpha \in \CC_x \; | \; R(f,p)(\alpha) = 0
+\right\}.
+\]
+and
+\[
+\mathcal{X}_\nu^{(2)} =
+\left\{
+\alpha \in \CC_x \; | \; R(f,q)(\alpha) = 0
+\right\}.
+\]
+containing the $x$-points where $p$ or $q$ vanish on the curve. Since
+the above representation only captures the affine behavior of the
+function we need to add the point at infinity as a point to check,
+\[
+\mathcal{X}_\nu^{(3)} = \{ \infty \}.
+\]
+Thus, the set of all $x$-points we need to consider is
+\[
+\mathcal{X}_\nu
+=
+\mathcal{X}_\nu^{(1)} \cup
+\mathcal{X}_\nu^{(2)} \cup
+\mathcal{X}_\nu^{(3)}
+\]
+From the Puiseux algorithm [XXX] we can then determine the places with
+these $x$-projections,
+\[
+\mathcal{P}_\nu =
+\left\{ P \in X \; | \; x_P(0) \in \mathcal{X}_\nu
+\right\}.
+\]
+
+For each place $P \in \mathcal{X}_\nu$ we now need to determine if the
+place is indeed a pole or zero of $\nu$. To do so, we substitute the
+Puiseux series representation $x=x_P(t), y=y_P(t)$ into $\nu$ to obtain
+\[
+\nu \big|_P
+=
+\frac{p\big(x_P(t),y_P(t)\big)}{q\big(x_P(t),y_P(t)\big)} \dx(t)
+=
+\frac{p(t)}{q(t)} x'(t) \dt.
+\]
+We then compute a Laurent series expansion with respect to $t$
+\[
+\nu \big|_P = \left( c t^{\text{val}(\nu,P)} + \cdots \right) \dt
+\]
+where the valuation $\text{val}(\nu,P)$ is the leading order behavior of
+$\omega$ at $P$. If $\text{val}(\nu,P) < 0$ then $P$ is a pole. If
+$\text{val}(\nu,P) > 0$ then $P$ is a zero. Otherwise, $P$ does not
+appear in the valuation divisor for $\nu$.
+
+Since every holomorphic differential is trivially meromorphic we will
+choose the holomorphic differentials basis elements $\{\omega_1, \ldots,
+\omega_g\}$ to determine a canconical divisor on $X$ for several
+reasons:
+\begin{itemize}
+\item These differentials are already obtained and were used to
+  determine the period matrix of the surface.
+\item There are fewer resolvent sets to compute. The denominator of
+  every holomorphic differential is $\partial_y f(x,y)$. One can compute
+  the resolvent of $\partial_y f$ with $f$ once and use the results for
+  each holomorphic differential. This resolvent set, which consists of
+  the discriminant points of the curve $C$, was already determined for
+  the purposes of computing a homology basis. (See [XXX].)
+\item In general the valuation divisors of holomorphic differentials
+  consist of fewer distinct places. The degree of every canonical
+  divisor is $2g-2$. Therefore, the must always be $2g-2$ more zeros,
+  counting multiplicities, than poles. So to minimize the number of
+  places used we chose to use holomorphic differentials.
+
+  Furthermore, by using holomorphic differentials we can stop computing
+  places on $X$ the moment the degree of the canonical divsior reaches
+  $2g-2$; hence the distinction between the set of $x$-points
+  $\mathcal{X}_\omega$ and corresponding places $\mathcal{P}_\omega$. See
+  Algorithm \ref{alg: canonical} for details on how this information is
+  used.
 \end{itemize}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Computing a Canonical Divisor}\label{sec: canonical}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-A basis of holomorphic one-forms on the Riemann surface are of the form
-\[
-    \omega_j = \frac{h_j(x,y)}{\partial_j f(x,y)} \dx
-\]
-where
-\[
-    h_j(x,y) = \sum_{k+m \leq d-3} c_{jkl}x^ky^l.
-\]
-Typically, we choose a basis of holomorphic one-forms which are
-normalized with respect to the a-periods of the Riemann surface. In
-determining a canonical divisor we do not need such one-forms.
-
-Let $\nu$ be a meromorphic differential with zeros at the places $P_j$
-with multiplicities $p_j$ and poles at the places $Q_j$ with
-multiplicities $q_j$. Then, the divisor
-\begin{equation} \label{eqn: valuation divisor}
-  (\nu)_\text{val} = \sum_{i=1}^m p_jP_j - \sum_{i=1}^n q_jQ_j
-\end{equation}
-is canonical.
-
-
-\begin{algorithm}
-\caption{{\tt canonical()} - canonical divisors of a Riemann surface}
+An algorithm for computing the valuation divisor of a holomorphic
+differential is given below.
+\begin{algorithm}[H]
+\caption{{\tt canonical\_divisor} - canonical divisor of a Riemann surface}
 \label{alg: canonical}
 \begin{algorithmic}[1]
-\Require (none)
+  \Require Riemann surface $X$ given by the desingularization and
+  compactification of complex plane curve $C : f(x,y) = 0$
 
-\Ensure $\text{length}(\mathcal{C}) = g$
+  \Require holomorphic differential $\omega = p(x,y) / \partial_y f(x,y)
+  \dx$ on $X$
 
-\Ensure $\deg \mathcal{C}_j = 2g - 2$ for $j = 1, \ldots, g$.
+  \Ensure canonical divisor $\DivC$
 
-\State $\mathcal{D}_j \gets 0$ for $j = 1, \ldots, g$
+  \State $\DivC \gets 0$
 
-\State $\mathcal{W} \gets \{\omega_1, \ldots, \omega_g\}$
+  \State $\mathcal{X}_\omega^{(1)} \gets$ roots of resolvent $R(f,p)(x)
+  = 0$
 
-\State $\mathcal{X}_j \gets \left\{ \alpha \in \CC \; : \; \exists
-Q_l^{\alpha} \in X \text{ where } \omega \big|_{Q_l^\alpha} = 0
-\right\}$ for $j = 1, \ldots, g$
+  \State $\mathcal{X}_\omega^{(2)} \gets$ discriminant points of $C :
+  f(x,y) = 0$ \Comment{use cached values from homology}
 
-\For{$\omega_j \in \mathcal{W}$}
+  \State $\mathcal{X}_\omega \gets \mathcal{X}_\omega^{(1)} \cup
+  \mathcal{X}_\omega^{(2)} \cup \{ \infty \}$
 
-    \For{$\alpha_k \in \mathcal{X}_j$}
+  \For{$\alpha \in \mathcal{X}_\omega$}
 
-        \State $\mathcal{Q} \gets \left\{ Q_1^{\alpha_k}, Q_2^{\alpha_k},
-        \ldots \right\}$
+  \State $\mathcal{P}_\omega^\alpha \gets \left\{ P \in X \; | \; x_P(0)
+  = \alpha \right\}$
 
-        \For{$Q_l^{\alpha_k} \in \mathcal{Q}$}
+  \For{$P \in \mathcal{P}_\omega^\alpha$}
 
-            \State $q_{jkl} \gets \text{val}\left(\omega_j,
-            Q_l^{\alpha_k}\right)$
+  \State $n \gets \text{val}\left(\omega,P\right)$
 
-            \If{$q_{jkl} = 0$}
-                \State {\bf break}
-            \EndIf
+  \State $\DivC \gets \DivC + \,n P$
+  \Comment{not a zero of $\omega$ if $n=0$}
 
+  \If{$\deg \DivC = 2g - 2$}
+  \State \Return $\DivC$
+  \EndIf
 
-            \State $\mathcal{D}_j \gets \mathcal{D}_j + q_{jkl}
-            Q_l^{\alpha_k}$
+  \EndFor
 
-            \If{$\deg \mathcal{D}_j = 2g - 2$}
+  \EndFor
 
-                \State $\mathcal{C}_j \gets \mathcal{D}_j$
-                \Comment{break here if only one divisor is needed}
-
-            \EndIf
-
-        \EndFor
-
-    \EndFor
-
-\EndFor
-
-\State {\bf return} $\mathcal{C} = \left\{ \mathcal{C}_1, \ldots,
-\mathcal{C}_g \right\}$
+  \State {\bf raise error}
 
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Notes on Algorithm \ref{alg: canonical}}
+Some notes about the algorithm:
+\begin{itemize}
+\item Only the leading order behavior of the Puiseux series
+  parameterizations of each place $P \in \mathcal{P}_\omega^\alpha$ to
+  determine $\text{val}(\omega,P)$ is needed implying that computing
+  just the ``singular part'' of these expansions using the method of
+  Duval is sufficient [XXX].
+\item Whem computing resolvent sets we can chose the holomorphic
+  differential basis element with lowest total degree numerator
+  $p=p(x,y)$ to reduce the number of $x$-point and therefore places to
+  check.
+\item As stated above, all canonicals divisors are of degree
+  $2g-2$. Algorithm \ref{alg: canonical} will terminate once the target
+  degree is met and not spend any further computational effort computing
+  places and valuations. A significant gain in efficiency is observed
+  when the set $\mathcal{X}_\omega$ is ordered such that places over
+  $x,y \in \{0,\infty\}$ are checked first.
+\end{itemize}
 
-Often, such as in computing the RCV, one only needs a single canonical
-divisor. A flag can be optionally provided so that Algorithm \ref{alg:
-  canonical} stops execution the moment a single canonical divisor is
-obtained.
+Additional steps can be taken for validation and testing of the output
+of Algorithm \ref{alg: canonical}:
+\begin{itemize}
+\item The canonical divisor for every holmomorphic differential can be
+  determined and verified that $\deg (\omega_i)_\text{val} = 2g-2$.
+\item The break in execution once the degree requirement is met can be
+  ignored for the purposes of confirming that the remaining places $P
+  \in \mathcal{P}_\omega$ do not appear in the canonical divisor...
+\end{itemize}
 
-Computing the sets $\mathcal{X}_j$ can be made more efficient if a
-particular order is imposed and further time savings are possible if the
-necessary discriminant points and zeros of the numerators of the
-differentials are computed only as needed.
+
+\begin{example}
+  {\it Example canonical divisor computation.}
+
+\begin{ipythoninput}
+omega = X.holomorphic_oneforms(normalized=True)
+print omega[0]
+\end{ipythoninput}
+\begin{ipythonoutput}
+[XXX]
+\end{ipythonoutput}
+\begin{ipythoninput}
+C = omega[0].valuation_divisor()
+for multiplicity, place in C:
+    print place
+    print
+
+print 'Degree:', C.degree
+\end{ipythoninput}
+\begin{ipythonoutput}
+[XXX]
+\end{ipythonoutput}
+\end{example}
 
 
-\section{Computing the Riemann Constant Vector}
 
+
+%------------------------------------------------------------------------------
+\subsection{Computing a Half-Lattice Vector}
+%------------------------------------------------------------------------------
+
+
+
+{\it
+  Notes for below paragraphs:
+  \begin{itemize}
+    \item clarify connection between $\lambda$ and $h$ and say more
+      about space of half lattice vectors,
+    \item proof that each of the $2^{2g}$ resulting vectors are not equal
+  \end{itemize}
+}
+
+For now, consider $\RCV(P_0)$ and $\Abel(P_0,\DivC)$ to be vectors in
+$\CC^g$ set $\RCV_0 := \RCV(P_0)$ and $\Abel_0^{\DivC} :=
+\Abel(P_0,\DivC)$ for notational convenience. In $\CC^g$ we have
+\[
+2\RCV_0 + \Abel_0^{\DivC} = \boldsymbol{\lambda}
+\]
+where $\boldsymbol{\lambda} \in \CC^g$ is unknown and
+$\boldsymbol{\lambda} \equiv 0 \bmod{\Lambda}$, meaning that the vector
+$\boldsymbol{\lambda}$ lies on the lattice $\ZZ^g + \Omega
+\ZZ^g$. Division by two is now legal: setting $\boldsymbol{h} =
+\boldsymbol{\lambda}/2$ yields
+\[
+\RCV_0 = \boldsymbol{h} - \tfrac{1}{2} \Abel(P_0,\DivC).
+\]
+Reducing this expression modulo $\Lambda$ gives the corresponding
+equivalence in $J(X)$
+\[
+\RCV_0 \equiv \boldsymbol{h} - \tfrac{1}{2} \Abel(P_0,\DivC)
+\bmod{\Lambda}
+\]
+where the lattice vector $\boldsymbol{h}$ is unknown. There are $2^{2g}$
+possible half lattice vectors $\boldsymbol{h}_j \in \HalfLattice$
+producing $2^{2g}$ inequivalent vectors $\boldsymbol{h} -
+{\textstyle\tfrac{1}{2}}\Abel(P_0,\DivC) \bmod{\Lambda}$.
+
+The following two sections describe algorithms for computing the
+required canonical divisor and an appropriate ``half lattice vector''
+$\boldsymbol{h}$.
+
+%% Recall the definition of the Jacobian, $J(x) = \CC^g / \Lambda$ where
+%% $\Lambda = \ZZ^g + \Omega \ZZ^g \right)$. Let $\HalfLattice$ denote the
+%% set of $2^{2g}$ half-lattice basis vectors of the Jacobian
+%% \begin{equation*} \label{eqn:halflattice}
+%%   \HalfLattice = (\ZZ^g / 2\ZZ^g) + \Omega (\ZZ^g / 2\ZZ^g).
+%% \end{equation*}
 
 \begin{algorithm}
-\caption{\tt riemann\_constant\_vector()}
+\caption{\tt half\_lattice\_vector()}
 \label{alg: rcv}
 \begin{algorithmic}[1]
 
@@ -221,22 +951,23 @@ differentials are computed only as needed.
 \Require tolerances $\epsilon_1$ and $\epsilon_2$ \Comment
 $\theta$-function accuracies
 
-\Require a canonical divisor $\mathcal{C}$
+\Require a canonical divisor $\DivC$
 
-\Ensure a half lattice vector $h$
+\Ensure a half lattice vector $\boldsymbol{h}$
 
-\State $Z \gets \tfrac{1}{2} A(P^l, \mathcal{C})$
+\State $\boldsymbol{Z} \gets \tfrac{1}{2} \Abel(P_0, \mathcal{C})$
 
-\State $\mathcal{J} \gets \left( 1, \ldots, 2^{2g} \right)$
+\State $\mathcal{J} \gets \left\{ 1, \ldots, 2^{2g} \right\}$
 
 \State $\theta_{\epsilon_1} \gets$ the Riemann theta function uniformly
 accurate to order $\epsilon_1$
 
-\For{$j \in \mathcal{J}$} \Comment Pass \# 1
+\For{$j \in \mathcal{J}$} \Comment filter pass \# 1
 
-    \State $\kappa_j \gets [[h_j - Z]]$
+\State $\boldsymbol{\kappa}_j \gets [[\boldsymbol{h}_j -
+        \boldsymbol{Z}]]$
 
-    \If{$|| \theta_{\epsilon_1}(\kappa_j) || > \epsilon_1$}
+    \If{$|| \theta_{\epsilon_1}(\boldsymbol{\kappa}_j) || > \epsilon_1$}
 
         \State remove $j$ from $\mathcal{J}$
 
@@ -246,7 +977,7 @@ accurate to order $\epsilon_1$
 
 \State {\bf assert} $\mathcal{J} \neq \emptyset$
 
-\State {\bf return} $h_{j^*}$ {\bf if} $\mathcal{J} = \{j^*\}$
+\State {\bf if} $\mathcal{J} = \{j^*\}$ {\bf return} $\boldsymbol{h}_{j^*}$
 
 \State $\theta_{\epsilon_2} \gets$ the Riemann theta function uniformly
 accurate to order $\epsilon_2$
@@ -254,9 +985,10 @@ accurate to order $\epsilon_2$
 \State $\mathcal{D}_0 \gets P_1 + \cdots P_{g-1}$ an effective, degree
 $g-1$ divisor where the $P_i$'s are distinct regular places on $X$
 
-\For{$j \in \mathcal{J}$} \Comment Pass \# 2
+\For{$j \in \mathcal{J}$} \Comment filter pass \# 2
 
-    \State $\tilde{\kappa} \gets [[ h_j - Z + A(P^l, \mathcal{D}_0) ]]$
+    \State $\tilde{\boldsymbol{\kappa}} \gets [[ \boldsymbol{h}_j -
+        \boldsymbol{Z} + \Abel(P_0, \mathcal{D}_0) ]]$
 
     \If{$|| \theta_{\epsilon_2}(\tilde{\kappa}_j) || > \epsilon_2$}
 
@@ -268,16 +1000,40 @@ $g-1$ divisor where the $P_i$'s are distinct regular places on $X$
 
 \State {\bf assert} $\mathcal{J} \neq \emptyset$
 
-\State {\bf return} $h_{j^*}$ {\bf if} $\mathcal{J} = \{j^*\}$
+\State {\bf if} $\mathcal{J} = \{j^*\}$ {\bf return} $\boldsymbol{h}_{j^*}$
 
 
 \end{algorithmic}
 \end{algorithm}
 
+\begin{example}
+  {\it Example half-lattice vector computation.}
+\end{example}
 
 
-%% \bibliographystyle{plain}
-%% \bibliography{../papers.bib}
+
+%------------------------------------------------------------------------------
+\subsection{Implementation Notes and Examples}
+%------------------------------------------------------------------------------
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Future Work}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Bibliography}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\bibliographystyle{amsplain}
+\bibliography{rcv}
 
 \end{document}
 
