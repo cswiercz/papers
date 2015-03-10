@@ -114,8 +114,8 @@
   \begin{tabular}{ccc}
     % names
     Bernard Deconinck \footnote{\tt deconinc@uw.edu} &
-    Matt Patterson \footnote{\tt matthew.s.patterson@icloud.com} &
-    Chris Swierczewski \footnote{\tt cswiercz@uw.edu} \\
+    Matthew S. Patterson \footnote{\tt matthew.s.patterson@icloud.com} &
+    Christopber Swierczewski \footnote{\tt cswiercz@uw.edu} \\
     % address 1
     University of Washington &
     8506 37th Ave SW &
@@ -196,16 +196,16 @@ Other approaches exist for computing with Riemann surfaces. Bobenko and
 collaborators \cite{belokolos, BobenkoBordag89} compute solutions of
 integrable equations using a Schottky group representation for the
 associated surface. To our knowledge, the only paper dealing with all
-Riemann surfaces is by Frauendiener, Klein, and Shramchenko who compute
-the homology of a Riemann surface from the monodromy of an underlying
-algebraic curve, following \cite{dvh1}. Otherwise, authors have
-restricted themselves to specific families of Riemann surfaces such as
-hyperelliptic ones \cite{FrauendienerKlein06,FrauendienerKlein15} or low
-genus ones \cite{DFS97,FinkelSegur85,DeconinckSwierczewski13}. Our aim
-throughout is the development of algorithms capable of dealing with
-arbitrary compact connected Riemann surfaces, as is required for the
-investigation of solutions of, for instance, the KP equation
-\cite{DS98,Shiota86}.
+Riemann surfaces represented by algebraic curves is by Frauendiener,
+Klein, and Shramchenko who compute the homology of a Riemann surface
+from the monodromy of an underlying algebraic curve, following
+\cite{dvh1}. Otherwise, authors have restricted themselves to specific
+families of Riemann surfaces such as hyperelliptic ones
+\cite{FrauendienerKlein06,FrauendienerKlein15} or low genus ones
+\cite{DFS97,FinkelSegur85,DeconinckSwierczewski13}. Our aim throughout
+is the development of algorithms capable of dealing with arbitrary
+compact connected Riemann surfaces, as is required for the investigation
+of solutions of, for instance, the KP equation \cite{DS98,Shiota86}.
 
 In this paper we present a mathematical algorithm for computing the
 Riemann constant vector (RCV) and a demonstration of an implementation
@@ -302,8 +302,8 @@ we compute a basis, not necessarily normalized, for the space of Abelian
 differentials of the first kind.
 \begin{ipythoninput}
 from sympy.abc import x,y
-from abelfunctions import (RiemannSurface, RiemannTheta,
-                           RiemannConstantVector, puiseux)
+from abelfunctions import (RiemannSurface, RiemannTheta, Jacobian,
+                           AbelMap, RiemannConstantVector, puiseux)
 
 f = x**2*y**3 - x**4 + 1
 X = RiemannSurface(f,x,y)
@@ -465,7 +465,7 @@ places_above_two = X(2)
 for P in places_above_two:
     print P
 
-print '\nPuiseux series:'
+print 'Puiseux:'
 series_at_two = puiseux(f,x,y,2)
 for p in series_at_two:
     print p
@@ -476,7 +476,7 @@ Places:
 (2, RootOf(4*_y**3 - 15, 1))
 (2, RootOf(4*_y**3 - 15, 2))
 
-Puiseux series:
+Puiseux:
 (t + 2, RootOf(4*_y**3 - 15, 0) + 17*t*RootOf(4*_y**3 - 15, 0)/45 + O(t**2))
 (t + 2, RootOf(4*_y**3 - 15, 1) + 17*t*RootOf(4*_y**3 - 15, 1)/45 + O(t**2))
 (t + 2, RootOf(4*_y**3 - 15, 2) + 17*t*RootOf(4*_y**3 - 15, 2)/45 + O(t**2))
