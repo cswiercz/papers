@@ -7,7 +7,6 @@ and those in the works. As long as it's for science you're welcome to snipe.
 
 List of Papers
 --------------
---------------------------------------------------------------------------------
 In reverse chronological order.
 
 * (In Development) siegel - "Efficient Modular Computation of the Riemann Theta
